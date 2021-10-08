@@ -20,7 +20,7 @@ ttype = 'r'; % rigid registration, options: r: rigid, a: affine
 % and initial parameters
 switch ttype
     case 'r'
-        x=[0 0 0];
+        x=[0 0 0]; %vector of x y z movements
         scale = [1 1 0.1]; 
     case 'a'
         x=[0 0 0 1 1 1 1];

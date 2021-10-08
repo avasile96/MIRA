@@ -55,10 +55,18 @@ switch mtype
         e=sum((I3(:)-Ifixed(:)).^2)/numel(I3);
         
     case 'gcc' %gradient correlation
-        [Ifixed,~] = imgradient(Ifixed);
-        [Imoving,~] = imgradient(I3);
-        % e=sum(normxcorr2(GmagFixed(:), GmagMoving(:)));
-        e=-(sum((Ifixed - mean(Ifixed(:))) .* (Imoving - mean(Imoving(:))))) / (sqrt(sum((Ifixed - mean(Ifixed(:))).^2)).*sum((Imoving - mean(Imoving(:))).^2));
+        % image gradient
+        [Gx_fixed,Gy_fixed] = imgradientxy(Ifixed,'sobel');
+        
+        [Gx_moving,Gy_moving] = imgradientxy(I3,'sobel');
+        
+        Gx_total = Gx_fixed.*Gx_moving;
+        Gy_total = Gy_fixed.*Gy_moving;
+        
+        Gf_total_sqr = Gx_fixed.^2+Gy_fixed.^2;
+        Gm_total_sqr = Gx_moving.^2+Gy_moving.^2;
+        
+        e = -(sum(Gx_total(:) + Gy_total(:))/(sqrt(sum(Gf_total_sqr(:))*sum(Gm_total_sqr(:)))));
         
         
     case 'cc' %cross-correlation

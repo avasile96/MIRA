@@ -55,6 +55,7 @@ Tlocaly = mean_in(2) + M(2,1) * xd + M(2,2) *yd + M(2,3) * 1;
 switch(mode)
 	case 0
 		Interpolation='bilinear';
+        scale = [1 1 0.1 1 1 0.0001 0.0001];
 		Boundary='replicate';
 	case 1
 		Interpolation='bilinear';

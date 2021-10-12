@@ -6,7 +6,7 @@ function [ Iregistered, M] = affineReg2D( Imoving, Ifixed )
 Im=Imoving;
 If=Ifixed;
 
-mtype = 'gcc'; % metric type: sd: ssd gcc: gradient correlation; cc: cross-correlation
+mtype = 'sd'; % metric type: sd: ssd gcc: gradient correlation; cc: cross-correlation
 ttype = 'a'; % rigid registration, options: r: rigid, a: affine
 
 % Parameter scaling of the Translation and Rotation
@@ -19,7 +19,7 @@ switch ttype
         x=[0 0 0 1 1 0 0];
       % x =[ translationX translationY, rotate, resizeX, resizeY, shearingXY, searingYX]
         scale = [1 1 0.1 1 1 0.0001 0.0001];
-end;
+end
 % Rescaling the Registration Parameters
 x=x./scale;
 

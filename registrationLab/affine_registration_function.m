@@ -48,7 +48,7 @@ x=par.*scale;
                        0 0 1];
 
         M=M_Scalled*M_shearing;
-    end;
+    end
 
 
 I3=affine_transform_2d_double(double(Imoving),double(M),0); % 3 stands for cubic interpolation
@@ -98,5 +98,5 @@ switch mtype
         
     otherwise
         error('Unknown metric type');
-end;
+end
 

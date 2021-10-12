@@ -18,7 +18,7 @@ switch ttype
     case 'a'
         x=[0 0 0 1 1 0 0];
       % x =[ translationX translationY, rotate, resizeX, resizeY, shearingXY, searingYX]
-        scale = [1 1 0.1 1 1 0.0001 0.0001];
+        scale = [1 1 0.1 1 1 0.00001 0.00001];
 end;
 % Rescaling the Registration Parameters
 x=x./scale;
@@ -26,35 +26,39 @@ x=x./scale;
 Multiresolution_levels = 6;
 
 % Multiresolution
-Total_Image=Multiresolution_levels+1;
-I_ff=Ifixed;
-I_mv=Imoving;
-my_im_cell_1 = cell(Total_Image,1);
-my_im_cell_2 = cell(Total_Image,1);
-for i=1:1:Total_Image
-    my_im_cell_1{i}=I_ff;
-    I_ff = Multiresolution(I_ff);
-    my_im_cell_2{i}=I_mv;
-    I_mv = Multiresolution(I_mv);
+upper=Multiresolution_levels+1;
+fixed_vect_res = cell(upper,1);
+move_vect_res = cell(upper,1);
+store_fixed=Ifixed;
+store_moving=Imoving;
+for i=1:1:upper
+    fixed_vect_res{i}=store_fixed;
+    store_fixed = Multiresolution(store_fixed);
+    move_vect_res{i}=store_moving;
+    store_moving = Multiresolution(store_moving);
 end
     
     
 % [x]=fminsearch(@(x)affine_registration_function(x,scale,Im,If,mtype,ttype),x,optimset('Display','iter','MaxIter',1500, 'TolFun', 1.000000e-10,'TolX',1.000000e-10, 'MaxFunEvals', 1000*length(x)));
 % Optimization
-for k=Total_Image:-1:1
-Im=my_im_cell_2{k};
-If=my_im_cell_1{k};
-[x]=fminsearch(@(x)affine_registration_function(x,scale,Im,If,mtype,ttype),x,optimset('Display','iter','FunValCheck','on','MaxIter',500, 'TolFun', 1.000000e-30,'TolX',1.000000e-30, 'MaxFunEvals', 2000*length(x),'PlotFcns',@optimplotfval));
-switch ttype
-    case 'a'
-    scaleTxTy = [2 2 1 1 1 1 1]; % Only doubling the Tx and Ty, others kept constant.
-    x=x.*scaleTxTy;
-    case 'r'
-    scaleTxTy = [2 2 1]; % Only doubling the Tx and Ty, others kept constant.
-    x=x.*scaleTxTy;
+for k=upper:-1:1
+
+    If=fixed_vect_res{k};
+    Im=move_vect_res{k};
+
+    [x]=fminsearch(@(x)affine_registration_function(x,scale,Im,If,mtype,ttype),x,optimset('Display','iter','FunValCheck','on','MaxIter',500, 'TolFun', 1.000000e-30,'TolX',1.000000e-30, 'MaxFunEvals', 2000*length(x),'PlotFcns',@optimplotfval));
+    
+    switch ttype
+        case 'a'
+        XY_translation_only = [2 2 1 1 1 1 1]; % Scaling only translations in x and y
+        x=x.*XY_translation_only;
+        case 'r'
+        XY_translation_only = [2 2 1]; 
+        x=x.*XY_translation_only;
+    end
 end
-end
-x=x./scaleTxTy;
+
+x=x./XY_translation_only;
 x=x.*scale;
 
 switch ttype
@@ -97,8 +101,12 @@ fprintf('Best quantative metric (%s) is %.4f \n \n',mtype,Best_metric);
 % Show the registration results
 figure,
 subplot(2,2,1), imshow(If);
+title("Fixed Image");
 subplot(2,2,2), imshow(Im);
+title("Moving Image");
 subplot(2,2,3), imshow(Icor);
+title("Registered Image");
 subplot(2,2,4), imshow(abs(If-Icor));
+title("Difference Image");
 end
 

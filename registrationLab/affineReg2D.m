@@ -6,7 +6,7 @@ function [ Iregistered, M] = affineReg2D( Imoving, Ifixed )
 Im=Imoving;
 If=Ifixed;
 
-mtype = 'sd'; % metric type: sd: ssd gcc: gradient correlation; cc: cross-correlation
+mtype = 'cc'; % metric type: sd: ssd gcc: gradient correlation; cc: cross-correlation
 ttype = 'a'; % rigid registration, options: r: rigid, a: affine
 
 % Parameter scaling of the Translation and Rotation
@@ -96,9 +96,9 @@ fprintf('Best quantative metric (%s) is %.4f \n \n',mtype,Best_metric);
 
 % Show the registration results
 figure,
-subplot(2,2,1), imshow(If);
-subplot(2,2,2), imshow(Im);
-subplot(2,2,3), imshow(Icor);
-subplot(2,2,4), imshow(abs(If-Icor));
+subplot(2,2,1), imshow(If), title('Image fixed');
+subplot(2,2,2), imshow(Im), title('Image moving');
+subplot(2,2,3), imshow(Icor), title('Image registered');
+subplot(2,2,4), imshow(abs(If-Icor)), title('Difference between Image fixed and Image registered');
 end
 

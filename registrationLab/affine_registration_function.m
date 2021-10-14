@@ -63,38 +63,16 @@ switch mtype
         [Gx_fixed,Gy_fixed] = imgradientxy(Ifixed,'sobel');
         
         [Gx_moving,Gy_moving] = imgradientxy(I3,'sobel');
-%         
-%         Gx_total = Gx_fixed.*Gx_moving;
-%         Gy_total = Gy_fixed.*Gy_moving;
-%         
-%         Gf_total_sqr = Gx_fixed.^2+Gy_fixed.^2;
-%         Gm_total_sqr = Gx_moving.^2+Gy_moving.^2;
-%         
-%         e = -(sum(Gx_total(:) + Gy_total(:))/(sqrt(sum(Gf_total_sqr(:))*sum(Gm_total_sqr(:)))));
 
-%         Gx_total = Gx_fixed.*Gx_moving;
-%         Gy_total = Gy_fixed.*Gy_moving;
-%         
-%         Gf_total_sqr = (Gx_fixed).^2+(Gy_fixed).^2;
-%         Gm_total_sqr = (Gx_moving).^2+(Gy_moving).^2;
-% 
-%         corr=sum(sum((Gx_total)+(Gy_moving.*Gy_total)));
-%         varr_moving_Image=sum(sum(Gf_total_sqr));
-%         varr_fixed_Image=sum(sum(Gm_total_sqr));
-%     
-%         e=corr/sqrt(varr_moving_Image*varr_fixed_Image);
-
-        corelation=sum(sum((Gx_moving.*Gx_fixed)+(Gy_moving.*Gy_fixed)));
-        Variance_Moving_Image=sum(sum((Gx_moving).^2+(Gy_moving).^2));
-        Variance_fixed_Image=sum(sum((Gx_fixed).^2+(Gy_fixed).^2));
+        a = sum(sum((Gx_moving.*Gx_fixed)+(Gy_moving.*Gy_fixed)));
+        b = sum(sum((Gx_moving).^2+(Gy_moving).^2));
+        c = sum(sum((Gx_fixed).^2+(Gy_fixed).^2));
     
-        e=-corelation/sqrt(Variance_Moving_Image*Variance_fixed_Image);
-%         e = -Gradient_cc(I3,Ifixed);
-        
-        
+        e = -a/sqrt(b*c);
+
     case 'cc' %cross-correlation
         Imoving = I3;
-        e=-(sum((Ifixed - mean(Ifixed(:))) .* (Imoving - mean(Imoving(:))))) / (sqrt(sum((Ifixed - mean(Ifixed(:))).^2)).*sum((Imoving - mean(Imoving(:))).^2));
+        e = -(sum((Ifixed - mean(Ifixed(:))) .* (Imoving - mean(Imoving(:))))) / (sqrt(sum((Ifixed - mean(Ifixed(:))).^2)).*sum((Imoving - mean(Imoving(:))).^2));
         
     otherwise
         error('Unknown metric type');

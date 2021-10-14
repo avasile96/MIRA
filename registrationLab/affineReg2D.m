@@ -6,8 +6,8 @@ function [ Iregistered, M] = affineReg2D( Imoving, Ifixed )
 Im=Imoving;
 If=Ifixed;
 
-mtype = 'cc'; % metric type: sd: ssd gcc: gradient correlation; cc: cross-correlation
-ttype = 'a'; % rigid registration, options: r: rigid, a: affine
+mtype = 'sd'; % metric type: sd: ssd gcc: gradient correlation; cc: cross-correlation
+ttype = 'r'; % rigid registration, options: r: rigid, a: affine
 
 % Parameter scaling of the Translation and Rotation
 % and initial parameters

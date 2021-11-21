@@ -25,8 +25,6 @@ def readImage(filename):
 
 
 # This draws matches and optionally a set of inliers in a different color
-# Note: I lifted this drawing portion from stackoverflow and adjusted it to my needs because OpenCV 2.4.11 does not
-# include the drawMatches function
 def drawMatches(img1, kp1, img2, kp2, matches, inliers = None):
     # Create a new output image that concatenates the two images together
     rows1 = img1.shape[0]
@@ -108,8 +106,8 @@ def calculateHomography(correspondences):
     #loop through correspondences and create assemble matrix
     aList = []
     for corr in correspondences:
-        p1 = np.matrix([corr.item(0), corr.item(1), 1])
-        p2 = np.matrix([corr.item(2), corr.item(3), 1])
+        p1 = np.matrix([corr.item(0), corr.item(1), 1]) # first point of the correspondence
+        p2 = np.matrix([corr.item(2), corr.item(3), 1]) # second point of the correspondence
 
         a2 = [0, 0, 0, -p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2),
               p2.item(1) * p1.item(0), p2.item(1) * p1.item(1), p2.item(1) * p1.item(2)]
@@ -124,7 +122,8 @@ def calculateHomography(correspondences):
     u, s, v = np.linalg.svd(matrixA)
 
     #reshape the min singular value into a 3 by 3 matrix
-    h = np.reshape(v[8], (3, 3))
+    h = np.reshape(v[8], (3, 3)) # getting the least important eigenvalue vector
+    # 8 because it's the last in the v vector, the least imporant
 
     #normalize and now we have h
     h = (1/h.item(8)) * h

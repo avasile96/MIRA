@@ -177,7 +177,7 @@ def computeHomography(matches, model):
             p2 = np.matrix([corr.item(2), corr.item(3), 1]) # second point of the correspondence
     
             a2 = [0, 0, 0, -p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2),
-                  p2.item(1) * p1.item(0), p2.item(1) * p1.item(1), p2.item(1) * p1.item(2)]
+                  p2.item(1) * p1.item(0), p2.item(1) * p1.item(1), 1]
             a1 = [-p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2), 0, 0, 0,
                   p2.item(0) * p1.item(0), p2.item(0) * p1.item(1), p2.item(0) * p1.item(2)]
             aList.append(a1)
@@ -344,15 +344,15 @@ if img1 is not None and img2 is not None:
     R_arr = R_arr.reshape([R_arr.shape[0]*R_arr.shape[1],1])
     Ere = np.inner(np.array(R),np.array(R))/len(R)
     Ere = np.dot(R_arr.T,R_arr)/len(R)
-    # print ("Final inliers count: ", len(inliers))
+    print ("Final inliers count: ", len(inliers))
 
-    # matchImg = drawMatches(img1,kp1,img2,kp2,matches,inliers)
-    # cv2.imwrite('InlierMatches.png', matchImg)
+    matchImg = drawMatches(img1,KP1,img2,KP2,matches,inliers)
+    cv2.imwrite('InlierMatches.png', matchImg)
 
-    # f = open('homography.txt', 'w')
-    # f.write("Final homography: \n" + str(finalH)+"\n")
-    # f.write("Final inliers count: " + str(len(inliers)))
-    # f.close()
+    f = open('homography.txt', 'w')
+    f.write("Final homography: \n" + str(finalH)+"\n")
+    f.write("Final inliers count: " + str(len(inliers)))
+    f.close()
 
 
 # if __name__ == "__main__":

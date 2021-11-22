@@ -189,13 +189,15 @@ def ransac(corr, thresh):
 # estimation_thresh = args.get('--threshold')
 # print ("Estimation Threshold: ", estimation_thresh)
 # if estimation_thresh is None:
-estimation_thresh = 0.60
+estimation_thresh = 0.80
 
 # img1name = str(img_name[0])
 # img2name = str(img_name[1])
     
-img1name = "D:\\Uni\\Spain\\MIRA\\MIRA\\Lab_2\\HomographyEstimation-master\\img1.png"
-img2name = "D:\\Uni\\Spain\\MIRA\\MIRA\\Lab_2\\HomographyEstimation-master\\img4.png"
+# img1name = "D:\\Uni\\Spain\\MIRA\\MIRA\\Lab_2\\HomographyEstimation-master\\img1.png"
+# img2name = "D:\\Uni\\Spain\\MIRA\\MIRA\\Lab_2\\HomographyEstimation-master\\img4.png"
+img1name = "./DataSet01/00.png"
+img2name = "./DataSet01/01.png" 
 print("Image 1 Name: " + img1name)
 print("Image 2 Name: " + img2name)
 

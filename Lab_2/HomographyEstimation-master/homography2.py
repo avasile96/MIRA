@@ -222,7 +222,14 @@ def computeHomography(matches, model):
         #normalize and now we have h
         h = (1/h.item(8)) * h
         return h
-    
+
+def keyPointMask(img,kp):
+    canvas = np.zeros_like(img, dtype = np.uint8)
+    KP=[] # cv2 keypoint format
+    for y,x in kp:
+        canvas[int(x),int(y)] = 1
+        KP.append(cv2.KeyPoint(y,x,50))
+    return np.array(binary_dilation(canvas, selem = np.ones([4,4])),dtype = np.uint8), KP        
         
 estimation_thresh = 0.60
 

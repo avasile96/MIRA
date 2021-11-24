@@ -14,7 +14,9 @@ import sys
 import random
 import scipy.io
 from skimage.morphology import binary_dilation
-
+from skimage.transform import estimate_transform
+import matplotlib.pyplot as plt
+from skimage import io
 #
 # Read in an image file, errors out if we can't find the file
 #
@@ -26,6 +28,7 @@ def readImage(filename):
     else:
         print('Image successfully read...')
         return img
+
 
 
 # This draws matches and optionally a set of inliers in a different color
@@ -121,80 +124,116 @@ def computeHomography(matches, model):
     #loop through correspondences and create assemble matrix
     aList = []
     if (model == 'Euclidean'):
-        for corr in matches:
-            p1 = np.matrix([corr.item(0), corr.item(1), 1]) # first point of the correspondence
-            p2 = np.matrix([corr.item(2), corr.item(3), 1]) # second point of the correspondence
-    
-            a2 = [0, 0, 0, -p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2),
-                  p2.item(1) * p1.item(0), p2.item(1) * p1.item(1), p2.item(1) * p1.item(2)]
-            a1 = [-p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2), 0, 0, 0,
-                  p2.item(0) * p1.item(0), p2.item(0) * p1.item(1), p2.item(0) * p1.item(2)]
-            aList.append(a1)
-            aList.append(a2)
-    
-        matrixA = np.matrix(aList)
-    
-        #svd composition
-        u, s, v = np.linalg.svd(matrixA)
-    
-        #reshape the min singular value into a 3 by 3 matrix
-        h = np.reshape(v[3], (3, 3)) # getting the least important eigenvalue vector
-        # h[2,0] = 0
-        # h[2,1] = 0
-        # 8 because it's the last in the v vector, the least imporant
-    
-        #normalize and now we have h
-        h = (1/h.item(8)) * h
+        src = np.array(matches)[:,0:2]
+        dst = np.array(matches)[:,2:4]
+        num = src.shape[0]
+        dim = src.shape[1]
+
+        # Compute mean of src and dst.
+        src_mean = src.mean(axis=0)
+        dst_mean = dst.mean(axis=0)
+
+        # Subtract mean from src and dst.
+        src_demean = src - src_mean
+        dst_demean = dst - dst_mean
+
+        A = dst_demean.T @ src_demean / num
+
+        d = np.ones((dim,), dtype=np.double)
+        if np.linalg.det(A) < 0:
+            d[dim - 1] = -1
+
+        h = np.eye(dim + 1, dtype=np.double)
+
+        U, S, V = np.linalg.svd(A)
+
+        rank = np.linalg.matrix_rank(A)
+        
+        # Computing the Rotation Matrix
+        if rank == 0:
+            return np.nan * h
+        elif rank == dim - 1:
+            if np.linalg.det(U) * np.linalg.det(V) > 0:
+                h[:dim, :dim] = U @ V
+            else:
+                s = d[dim - 1]
+                d[dim - 1] = -1
+                h[:dim, :dim] = U @ np.diag(d) @ V
+                d[dim - 1] = s
+        else:
+            h[:dim, :dim] = U @ np.diag(d) @ V
+        
+        # Getting the Transaltion Terms
+        h[:dim, dim] = dst_mean - (h[:dim, :dim] @ src_mean.T)
         return h
+    
     elif (model == 'Similarity'):
-        for corr in matches:
-            p1 = np.matrix([corr.item(0), corr.item(1), 1]) # first point of the correspondence
-            p2 = np.matrix([corr.item(2), corr.item(3), 1]) # second point of the correspondence
-    
-            a2 = [0, 0, 0, -p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2),
-                  p2.item(1) * p1.item(0), p2.item(1) * p1.item(1), p2.item(1) * p1.item(2)]
-            a1 = [-p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2), 0, 0, 0,
-                  p2.item(0) * p1.item(0), p2.item(0) * p1.item(1), p2.item(0) * p1.item(2)]
-            aList.append(a1)
-            aList.append(a2)
-    
-        matrixA = np.matrix(aList)
-    
-        #svd composition
-        u, s, v = np.linalg.svd(matrixA)
-    
-        #reshape the min singular value into a 3 by 3 matrix
-        h = np.reshape(v[4], (3, 3)) # getting the least important eigenvalue vector
-        # 8 because it's the last in the v vector, the least imporant
-        # h[2,0] = 0
-        # h[2,1] = 0
-        #normalize and now we have h
-        h = (1/h.item(8)) * h
+        src = np.array(matches)[:,0:2]
+        dst = np.array(matches)[:,2:4]
+        num = src.shape[0]
+        dim = src.shape[1]
+
+        # Compute mean of src and dst.
+        src_mean = src.mean(axis=0)
+        dst_mean = dst.mean(axis=0)
+
+        # Subtract mean from src and dst.
+        src_demean = src - src_mean
+        dst_demean = dst - dst_mean
+
+        A = dst_demean.T @ src_demean / num
+
+        d = np.ones((dim,), dtype=np.double)
+        if np.linalg.det(A) < 0:
+            d[dim - 1] = -1
+
+        h = np.eye(dim + 1, dtype=np.double)
+
+        U, S, V = np.linalg.svd(A)
+        
+        rank = np.linalg.matrix_rank(A)
+        # Computing the Rotation Matrix
+        if rank == 0:
+            return np.nan * h
+        elif rank == dim - 1:
+            if np.linalg.det(U) * np.linalg.det(V) > 0:
+                h[:dim, :dim] = U @ V
+            else:
+                s = d[dim - 1]
+                d[dim - 1] = -1
+                h[:dim, :dim] = U @ np.diag(d) @ V
+                d[dim - 1] = s
+        else:
+            h[:dim, :dim] = U @ np.diag(d) @ V
+
+        # Getting the Scale
+        scale = 1.0 / src_demean.var(axis=0).sum() * (S @ d)
+        
+        # Getting the Transaltion Terms
+        h[:dim, dim] = dst_mean - scale * (h[:dim, :dim] @ src_mean.T)
+        h[:dim, :dim] *= scale
         return h
+    
     elif (model == 'Affine'):
         for corr in matches:
             p1 = np.matrix([corr.item(0), corr.item(1), 1]) # first point of the correspondence
             p2 = np.matrix([corr.item(2), corr.item(3), 1]) # second point of the correspondence
     
             a2 = [0, 0, 0, -p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2),
-                  p2.item(1) * p1.item(0), p2.item(1) * p1.item(1), p2.item(1) * p1.item(2)]
+                  0, 0,p2.item(1) * p1.item(2)]
             a1 = [-p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2), 0, 0, 0,
-                  p2.item(0) * p1.item(0), p2.item(0) * p1.item(1), p2.item(0) * p1.item(2)]
+                  0, 0, p2.item(0) * p1.item(2)]
             aList.append(a1)
             aList.append(a2)
     
         matrixA = np.matrix(aList)
     
         #svd composition
-        u, s, v = np.linalg.svd(matrixA)
+        U, S, V = np.linalg.svd(matrixA)
     
         #reshape the min singular value into a 3 by 3 matrix
-        # h = np.reshape(v[8], (3, 3)) # getting the least important eigenvalue vector
-        h = np.reshape(v[6], (3, 3)) # getting the least important eigenvalue vector
+        h = np.reshape(V[6], (3, 3)) # getting the least important eigenvalue vector
 
-        # 8 because it's the last in the v vector, the least imporant
-        # h[2,0] = 0
-        # h[2,1] = 0
         #normalize and now we have h
         h = (1/h.item(8)) * h
         return h
@@ -213,10 +252,10 @@ def computeHomography(matches, model):
         matrixA = np.matrix(aList)
     
         #svd composition
-        u, s, v = np.linalg.svd(matrixA)
+        U, S, V = np.linalg.svd(matrixA)
     
         #reshape the min singular value into a 3 by 3 matrix
-        h = np.reshape(v[8], (3, 3)) # getting the least important eigenvalue vector
+        h = np.reshape(V[8], (3, 3)) # getting the least important eigenvalue vector
         # 8 because it's the last in the v vector, the least imporant
     
         #normalize and now we have h
@@ -243,6 +282,7 @@ print("Image 2 Name: " + img2name)
 img1 = readImage(img1name)
 #train image
 img2 = readImage(img2name)
+rows,cols = img1.shape
 
 # Loading features
 mat = scipy.io.loadmat('./DataSet01/Features.mat')
@@ -280,7 +320,8 @@ if img1 is not None and img2 is not None:
     corrs = np.matrix(correspondenceList)
 
     # #run computeHomography algorithm
-    finalH = computeHomography(corrs, 'Euclidean')
+    finalH = computeHomography(corrs, 'Projection')
+
     print ("Final homography: ", finalH)
     
     # Reprojection Error
@@ -300,8 +341,19 @@ if img1 is not None and img2 is not None:
         
     R_arr = np.array(R)
     R_arr = R_arr.reshape([R_arr.shape[0]*R_arr.shape[1],1])
-    Ere = np.inner(np.array(R),np.array(R))/len(R)
+    # Ere = np.inner(np.array(R),np.array(R))/len(R)
     Ere = np.dot(R_arr.T,R_arr)/len(R)
+    print ("Error: ", Ere)
+    
+    dst = cv2.warpPerspective(img1,finalH,(cols,rows))
+    
+    plt.figure()
+    io.imshow(img1)
+    plt.figure()
+    io.imshow(img2)
+    plt.figure()
+    io.imshow(dst)
+    
     # print ("Final inliers count: ", len(inliers))
 
     # matchImg = drawMatches(img1,kp1,img2,kp2,matches,inliers)

@@ -14,6 +14,7 @@ import sys
 import random
 import scipy.io
 from skimage.morphology import binary_dilation
+from skimage import io
 
 #
 # Read in an image file, errors out if we can't find the file
@@ -275,85 +276,103 @@ def keyPointMask(img,kp):
         
 estimation_thresh = 1
 
-img1name = "./DataSet01/00.png"
-img2name = "./DataSet01/01.png" 
+for im1 in ['00']:
+    for im2 in ['01','02','03']:
+        if im1 != im2:
+            img1name = "./DataSet01/{}.png".format(im1)
+            img2name = "./DataSet01/{}.png" .format(im2)
 
-print("Image 1 Name: " + img1name)
-print("Image 2 Name: " + img2name)
-
-#query image
-img1 = readImage(img1name)
-#train image
-img2 = readImage(img2name)
-
-# Loading features
-mat = scipy.io.loadmat('./DataSet01/Features.mat')
-Features = mat['Features'].T
-features = []
-
-for i in range (0,Features.shape[0]):
-    features.append(Features[i][0][0])
-
-# del mat, Features
-kp1 = np.floor(features[int(img1name[-5])]) # x (kp[:,1]) and y (kp[:,0]) 
-kp2 = np.floor(features[int(img2name[-5])])
-
-
-# Step 2
-correspondenceList = []
-if img1 is not None and img2 is not None:
-    
-    canvas1, KP1 = keyPointMask(img1, kp1) # KP1 is kp1 in cv2 keypoint format
-    canvas2, KP2 = keyPointMask(img2, kp2)
-    
-    KP1, desc1 = findFeaturesWithKp(img1,canvas1,KP1)
-    KP2, desc2 = findFeaturesWithKp(img2,canvas2,KP2)
-    
-    print ("Found keypoints in " + img1name + ": " + str(len(KP1)))
-    print ("Found keypoints in " + img2name + ": " + str(len(KP2)))
-    keypoints = [KP1,KP2]
-    matches = matchFeatures(KP1, KP2, desc1, desc2, img1, img2)
-    
-    for match in matches:
-        (x1, y1) = keypoints[0][match.queryIdx].pt
-        (x2, y2) = keypoints[1][match.trainIdx].pt
-        correspondenceList.append([x1, y1, x2, y2])
-
-    corrs = np.matrix(correspondenceList)
-
-    # #run computeHomography algorithm
-    finalH, inliers = computeHomographyRANSAC(corrs, estimation_thresh, 'Projection')
-    print ("Final homography: ", finalH)
-    
-    # Reprojection Error
-    invH = np.linalg.inv(finalH)/np.linalg.inv(finalH)[2,2]
-    R = []
-    for corr in correspondenceList:
-        # print (corr) # y1-corr[0] x1-corr[1] y2-corr[2] x2-corr[3]
-        a = corr[1] - np.divide(finalH[0,0]*corr[3]+finalH[0,1]*corr[2]+finalH[0,2],
-                                finalH[2,0]*corr[3]+finalH[2,1]*corr[2]+1)
-        b = corr[0] - np.divide(finalH[1,0]*corr[3]+finalH[1,1]*corr[2]+finalH[1,2],
-                                finalH[2,0]*corr[3]+finalH[2,1]*corr[2]+1)
-        c = corr[3] - np.divide(invH[0,0]*corr[1]+invH[0,1]*corr[0]+invH[0,2],
-                                invH[2,0]*corr[1]+invH[2,1]*corr[0]+1)
-        d = corr[2] - np.divide(invH[1,0]*corr[1]+invH[1,1]*corr[0]+invH[1,2],
-                                invH[2,0]*corr[1]+invH[2,1]*corr[0]+1)
-        R.append(np.array([a,b,c,d]))
-        
-    R_arr = np.array(R)
-    R_arr = R_arr.reshape([R_arr.shape[0]*R_arr.shape[1],1])
-    Ere = np.inner(np.array(R),np.array(R))/len(R)
-    Ere = np.dot(R_arr.T,R_arr)/len(R)
-    print ("Final inliers count: ", len(inliers))
-
-    matchImg = drawMatches(img1,KP1,img2,KP2,matches,inliers)
-    cv2.imwrite('InlierMatches.png', matchImg)
-
-    f = open('homography.txt', 'w')
-    f.write("Final homography: \n" + str(finalH)+"\n")
-    f.write("Final inliers count: " + str(len(inliers)))
-    f.close()
-
-
-# if __name__ == "__main__":
-#     main()
+            print("Image 1 Name: " + img1name)
+            print("Image 2 Name: " + img2name)
+            
+            #query image
+            img1 = readImage(img1name)
+            #train image
+            img2 = readImage(img2name)
+            rows,cols = img1.shape
+            
+            # Loading features
+            mat = scipy.io.loadmat('./DataSet01/Features.mat')
+            Features = mat['Features'].T
+            features = []
+            
+            for i in range (0,Features.shape[0]):
+                features.append(Features[i][0][0])
+            
+            # del mat, Features
+            kp1 = np.floor(features[int(img1name[-5])]) # x (kp[:,1]) and y (kp[:,0]) 
+            kp2 = np.floor(features[int(img2name[-5])])
+            
+            
+            # Step 2
+            correspondenceList = []
+            for mode in ['Euclidean', 'Similarity', 'Affine', 'Projection']:
+                correspondenceList = []
+                if img1 is not None and img2 is not None:
+                
+                    canvas1, KP1 = keyPointMask(img1, kp1) # KP1 is kp1 in cv2 keypoint format
+                    canvas2, KP2 = keyPointMask(img2, kp2)
+                    
+                    KP1, desc1 = findFeaturesWithKp(img1,canvas1,KP1)
+                    KP2, desc2 = findFeaturesWithKp(img2,canvas2,KP2)
+                    
+                    print ("Found keypoints in " + img1name + ": " + str(len(KP1)))
+                    print ("Found keypoints in " + img2name + ": " + str(len(KP2)))
+                    keypoints = [KP1,KP2]
+                    matches = matchFeatures(KP1, KP2, desc1, desc2, img1, img2)
+                    
+                    for match in matches:
+                        (x1, y1) = keypoints[0][match.queryIdx].pt
+                        (x2, y2) = keypoints[1][match.trainIdx].pt
+                        correspondenceList.append([x1, y1, x2, y2])
+                
+                    corrs = np.matrix(correspondenceList)
+                
+                    # #run computeHomography algorithm
+                    finalH, inliers = computeHomographyRANSAC(corrs, estimation_thresh, mode)
+                    print ("Final homography: ", finalH)
+                    
+                    # Reprojection Error
+                    invH = np.linalg.inv(finalH)/np.linalg.inv(finalH)[2,2]
+                    R = []
+                    for corr in correspondenceList:
+                        # print (corr) # y1-corr[0] x1-corr[1] y2-corr[2] x2-corr[3]
+                        a = corr[1] - np.divide(finalH[0,0]*corr[3]+finalH[0,1]*corr[2]+finalH[0,2],
+                                                finalH[2,0]*corr[3]+finalH[2,1]*corr[2]+1)
+                        b = corr[0] - np.divide(finalH[1,0]*corr[3]+finalH[1,1]*corr[2]+finalH[1,2],
+                                                finalH[2,0]*corr[3]+finalH[2,1]*corr[2]+1)
+                        c = corr[3] - np.divide(invH[0,0]*corr[1]+invH[0,1]*corr[0]+invH[0,2],
+                                                invH[2,0]*corr[1]+invH[2,1]*corr[0]+1)
+                        d = corr[2] - np.divide(invH[1,0]*corr[1]+invH[1,1]*corr[0]+invH[1,2],
+                                                invH[2,0]*corr[1]+invH[2,1]*corr[0]+1)
+                        R.append(np.array([a,b,c,d]))
+                        
+                    R_arr = np.array(R)
+                    R_arr = R_arr.reshape([R_arr.shape[0]*R_arr.shape[1],1])
+                    Ere = np.inner(np.array(R),np.array(R))/len(R)
+                    Ere = np.dot(R_arr.T,R_arr)/len(R)
+                    print ("Final inliers count: ", len(inliers))
+                
+                    matchImg = drawMatches(img1,KP1,img2,KP2,matches,inliers)
+                    cv2.imwrite('./Results/RANSAC/{}/InlierMatches_{}_to_{}_{}.png'.format(mode,im1,im2,mode), matchImg)
+                
+                    f = open('./Results/RANSAC/{}homography_{}_to_{}_{}.txt', 'w')
+                    f.write("Final homography: \n" + str(finalH)+"\n")
+                    f.write("Final inliers count: " + str(len(inliers)))
+                    f.close()
+                
+                
+                    # Actually registering the image
+                    dst = cv2.warpPerspective(img1,finalH,(cols,rows))
+                    
+                    # plt.figure()
+                    # io.imshow(img1)
+                    # plt.figure()
+                    # io.imshow(img2)
+                    # plt.figure()
+                    # io.imshow(dst)
+                    
+                    io.imsave('./Results/RANSAC/{}/{}_to_{}_{}.png'.format(mode,im1,im2,mode), dst)
+                    
+                    f = open('./Results/RANSAC/{},homography_{}_to_{}_{}.txt'.format(mode,im1,im2,mode), 'w')
+                    f.write("Final homography: \n" + str(finalH)+"\n")

@@ -252,10 +252,10 @@ def computeHomography(matches, model):
         matrixA = np.matrix(aList)
     
         #svd composition
-        U, S, V = np.linalg.svd(matrixA)
+        u, s, v = np.linalg.svd(matrixA)
     
         #reshape the min singular value into a 3 by 3 matrix
-        h = np.reshape(V[8], (3, 3)) # getting the least important eigenvalue vector
+        h = np.reshape(v[8], (3, 3)) # getting the least important eigenvalue vector
         # 8 because it's the last in the v vector, the least imporant
     
         #normalize and now we have h
@@ -270,7 +270,6 @@ def keyPointMask(img,kp):
         KP.append(cv2.KeyPoint(y,x,100))
     return np.array(binary_dilation(canvas, selem = np.ones([4,4])),dtype = np.uint8), KP        
         
-estimation_thresh = 0.60
 
 for im1 in ['00']:
     for im2 in ['01','02','03']:
@@ -362,6 +361,11 @@ for im1 in ['00']:
                     
                     io.imsave('./Results/{}/{}_to_{}_{}.png'.format(mode,im1,im2,mode), dst)
                     
-                    f = open('./Results/homography_{}_to_{}_{}.txt'.format(im1,im2,mode), 'w')
+                    f = open('./Results/{}/homography_{}_to_{}_{}.txt'.format(mode,im1,im2,mode), 'w')
                     f.write("Final homography: \n" + str(finalH)+"\n")
-            
+                    
+                    added_image = cv2.cvtColor(img2,cv2.COLOR_GRAY2RGB)
+                    added_image[:,:,1] = dst
+                    added_image[:,:,2] = dst
+                    # added_image = cv2.addWeighted(img2,0.4,dst,0.1,0)
+                    io.imsave('./Results/{}/overlay_{}_to_{}_{}.png'.format(mode,im1,im2,mode), added_image)

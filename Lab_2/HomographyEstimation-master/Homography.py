@@ -10,6 +10,7 @@ import numpy as np
 import getopt
 import sys
 import random
+from skimage import io
 
 #
 # Read in an image file, errors out if we can't find the file
@@ -197,12 +198,13 @@ estimation_thresh = 0.80
 # img1name = "D:\\Uni\\Spain\\MIRA\\MIRA\\Lab_2\\HomographyEstimation-master\\img1.png"
 # img2name = "D:\\Uni\\Spain\\MIRA\\MIRA\\Lab_2\\HomographyEstimation-master\\img4.png"
 img1name = "./DataSet01/00.png"
-img2name = "./DataSet01/01.png" 
+img2name = "./DataSet01/02.png" 
 print("Image 1 Name: " + img1name)
 print("Image 2 Name: " + img2name)
 
 #query image
 img1 = readImage(img1name)
+rows,cols = img1.shape
 #train image
 img2 = readImage(img2name)
 
@@ -235,6 +237,14 @@ if img1 is not None and img2 is not None:
     f.write("Final inliers count: " + str(len(inliers)))
     f.close()
 
+    dst = cv2.warpPerspective(img1,finalH,(cols,rows))
+    io.imsave('./Results/{}_to_{}.png'.format(img1name[-5],img2name[-5]), dst)
+    
+    added_image = cv2.cvtColor(img2,cv2.COLOR_GRAY2RGB)
+    added_image[:,:,1] = dst
+    added_image[:,:,2] = dst
+    # added_image = cv2.addWeighted(img2,0.4,dst,0.1,0)
+    io.imsave('./Results/overlay_{}_to_{}.png'.format(img1name[-5],img2name[-5]), added_image)
 
 # if __name__ == "__main__":
 #     main()

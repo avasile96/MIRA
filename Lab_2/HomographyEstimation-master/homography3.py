@@ -92,7 +92,7 @@ def findFeatures(img):
 
     return keypoints, descriptors
 
-def findFeaturesWithKp(img, canvas, KP):
+def findFeaturesWithKp(img, KP):
     print("Finding Features...")
     sift = cv2.SIFT_create()
     # KP, descriptors = sift.detectAndCompute(img,cv2.UMat(canvas)) # change KP to "useless" if you wanna use professor's Key Points
@@ -122,55 +122,94 @@ def computeHomography(matches, model):
     #loop through correspondences and create assemble matrix
     aList = []
     if (model == 'Euclidean'):
-        for corr in matches:
-            p1 = np.matrix([corr.item(0), corr.item(1), 1]) # first point of the correspondence
-            p2 = np.matrix([corr.item(2), corr.item(3), 1]) # second point of the correspondence
-    
-            a2 = [0, 0, 0, -p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2),
-                  p2.item(1) * p1.item(0), p2.item(1) * p1.item(1), p2.item(1) * p1.item(2)]
-            a1 = [-p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2), 0, 0, 0,
-                  p2.item(0) * p1.item(0), p2.item(0) * p1.item(1), p2.item(0) * p1.item(2)]
-            aList.append(a1)
-            aList.append(a2)
-    
-        matrixA = np.matrix(aList)
-    
-        #svd composition
-        u, s, v = np.linalg.svd(matrixA)
-    
-        #reshape the min singular value into a 3 by 3 matrix
-        h = np.reshape(v[3], (3, 3)) # getting the least important eigenvalue vector
-        # h[2,0] = 0
-        # h[2,1] = 0
-        # 8 because it's the last in the v vector, the least imporant
-    
-        #normalize and now we have h
-        h = (1/h.item(8)) * h
+        src = np.array(matches)[:,0:2]
+        dst = np.array(matches)[:,2:4]
+        num = src.shape[0]
+        dim = src.shape[1]
+
+        # Compute mean of src and dst.
+        src_mean = src.mean(axis=0)
+        dst_mean = dst.mean(axis=0)
+
+        # Subtract mean from src and dst.
+        src_demean = src - src_mean
+        dst_demean = dst - dst_mean
+
+        A = dst_demean.T @ src_demean / num
+
+        d = np.ones((dim,), dtype=np.double)
+        if np.linalg.det(A) < 0:
+            d[dim - 1] = -1
+
+        h = np.eye(dim + 1, dtype=np.double)
+
+        U, S, V = np.linalg.svd(A)
+
+        rank = np.linalg.matrix_rank(A)
+        
+        # Computing the Rotation Matrix
+        if rank == 0:
+            return np.nan * h
+        elif rank == dim - 1:
+            if np.linalg.det(U) * np.linalg.det(V) > 0:
+                h[:dim, :dim] = U @ V
+            else:
+                s = d[dim - 1]
+                d[dim - 1] = -1
+                h[:dim, :dim] = U @ np.diag(d) @ V
+                d[dim - 1] = s
+        else:
+            h[:dim, :dim] = U @ np.diag(d) @ V
+        
+        # Getting the Transaltion Terms
+        h[:dim, dim] = dst_mean - (h[:dim, :dim] @ src_mean.T)
         return h
+    
     elif (model == 'Similarity'):
-        for corr in matches:
-            p1 = np.matrix([corr.item(0), corr.item(1), 1]) # first point of the correspondence
-            p2 = np.matrix([corr.item(2), corr.item(3), 1]) # second point of the correspondence
-    
-            a2 = [0, 0, 0, -p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2),
-                  p2.item(1) * p1.item(0), p2.item(1) * p1.item(1), p2.item(1) * p1.item(2)]
-            a1 = [-p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2), 0, 0, 0,
-                  p2.item(0) * p1.item(0), p2.item(0) * p1.item(1), p2.item(0) * p1.item(2)]
-            aList.append(a1)
-            aList.append(a2)
-    
-        matrixA = np.matrix(aList)
-    
-        #svd composition
-        u, s, v = np.linalg.svd(matrixA)
-    
-        #reshape the min singular value into a 3 by 3 matrix
-        h = np.reshape(v[4], (3, 3)) # getting the least important eigenvalue vector
-        # 8 because it's the last in the v vector, the least imporant
-        # h[2,0] = 0
-        # h[2,1] = 0
-        #normalize and now we have h
-        h = (1/h.item(8)) * h
+        src = np.array(matches)[:,0:2]
+        dst = np.array(matches)[:,2:4]
+        num = src.shape[0]
+        dim = src.shape[1]
+
+        # Compute mean of src and dst.
+        src_mean = src.mean(axis=0)
+        dst_mean = dst.mean(axis=0)
+
+        # Subtract mean from src and dst.
+        src_demean = src - src_mean
+        dst_demean = dst - dst_mean
+
+        A = dst_demean.T @ src_demean / num
+
+        d = np.ones((dim,), dtype=np.double)
+        if np.linalg.det(A) < 0:
+            d[dim - 1] = -1
+
+        h = np.eye(dim + 1, dtype=np.double)
+
+        U, S, V = np.linalg.svd(A)
+        
+        rank = np.linalg.matrix_rank(A)
+        # Computing the Rotation Matrix
+        if rank == 0:
+            return np.nan * h
+        elif rank == dim - 1:
+            if np.linalg.det(U) * np.linalg.det(V) > 0:
+                h[:dim, :dim] = U @ V
+            else:
+                s = d[dim - 1]
+                d[dim - 1] = -1
+                h[:dim, :dim] = U @ np.diag(d) @ V
+                d[dim - 1] = s
+        else:
+            h[:dim, :dim] = U @ np.diag(d) @ V
+
+        # Getting the Scale
+        scale = 1.0 / src_demean.var(axis=0).sum() * (S @ d)
+        
+        # Getting the Transaltion Terms
+        h[:dim, dim] = dst_mean - scale * (h[:dim, :dim] @ src_mean.T)
+        h[:dim, :dim] *= scale
         return h
     elif (model == 'Affine'):
         for corr in matches:
@@ -266,18 +305,16 @@ def computeHomographyRANSAC(corr, thresh, model):
     return finalH, maxInliers
 
 def keyPointMask(img,kp):
-    canvas = np.zeros_like(img, dtype = np.uint8)
     KP=[] # cv2 keypoint format
     for y,x in kp:
-        canvas[int(x),int(y)] = 1
-        KP.append(cv2.KeyPoint(y,x,50))
-    return np.array(binary_dilation(canvas, selem = np.ones([4,4])),dtype = np.uint8), KP    
+        KP.append(cv2.KeyPoint(y,x,100))
+    return KP    
     
         
 estimation_thresh = 1
 
 for im1 in ['00']:
-    for im2 in ['01','02','03']:
+    for im2 in ['03']:
         if im1 != im2:
             img1name = "./DataSet01/{}.png".format(im1)
             img2name = "./DataSet01/{}.png" .format(im2)
@@ -310,11 +347,11 @@ for im1 in ['00']:
                 correspondenceList = []
                 if img1 is not None and img2 is not None:
                 
-                    canvas1, KP1 = keyPointMask(img1, kp1) # KP1 is kp1 in cv2 keypoint format
-                    canvas2, KP2 = keyPointMask(img2, kp2)
+                    KP1 = keyPointMask(img1, kp1) # KP1 is kp1 in cv2 keypoint format
+                    KP2 = keyPointMask(img2, kp2)
                     
-                    KP1, desc1 = findFeaturesWithKp(img1,canvas1,KP1)
-                    KP2, desc2 = findFeaturesWithKp(img2,canvas2,KP2)
+                    KP1, desc1 = findFeaturesWithKp(img1,KP1)
+                    KP2, desc2 = findFeaturesWithKp(img2,KP2)
                     
                     print ("Found keypoints in " + img1name + ": " + str(len(KP1)))
                     print ("Found keypoints in " + img2name + ": " + str(len(KP2)))
@@ -376,3 +413,11 @@ for im1 in ['00']:
                     
                     f = open('./Results/RANSAC/{},homography_{}_to_{}_{}.txt'.format(mode,im1,im2,mode), 'w')
                     f.write("Final homography: \n" + str(finalH)+"\n")
+                    
+                    added_image = cv2.cvtColor(img2,cv2.COLOR_GRAY2RGB)
+                    added_image[:,:,1] = dst
+                    added_image[:,:,2] = dst
+                    # added_image = cv2.addWeighted(img2,0.4,dst,0.1,0)
+                    io.imsave('./Results/RANSAC/{}/overlay_{}_to_{}_{}.png'.format(mode,im1,im2,mode), added_image)
+                    
+                    

@@ -84,7 +84,11 @@ def drawMatches(img1, kp1, img2, kp2, matches, inliers = None):
 #
 def findFeatures(img):
     print("Finding Features...")
-    sift = cv2.SIFT_create()
+    sift = sift = cv2.SIFT_create(nfeatures = 128, 
+                           nOctaveLayers = 2,
+                           contrastThreshold = 0.2,
+                           edgeThreshold = 0.1,
+                           sigma = 1.6)
     keypoints, descriptors = sift.detectAndCompute(img, None)
 
     img = cv2.drawKeypoints(img, keypoints,img)
@@ -311,10 +315,10 @@ def keyPointMask(img,kp):
     return KP    
     
         
-estimation_thresh = 1
+estimation_thresh = 0.6
 
 for im1 in ['00']:
-    for im2 in ['03']:
+    for im2 in ['01','02','03']:
         if im1 != im2:
             img1name = "./DataSet01/{}.png".format(im1)
             img2name = "./DataSet01/{}.png" .format(im2)

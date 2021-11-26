@@ -17,6 +17,7 @@ from skimage.morphology import binary_dilation
 from skimage.transform import estimate_transform
 import matplotlib.pyplot as plt
 from skimage import io
+from scipy.spatial import distance
 #
 # Read in an image file, errors out if we can't find the file
 #
@@ -272,9 +273,28 @@ def keyPointMask(img,kp):
     for y,x in kp:
         canvas[int(x),int(y)] = 1
         KP.append(cv2.KeyPoint(y,x,50))
-    return np.array(binary_dilation(canvas, selem = np.ones([4,4])),dtype = np.uint8), KP        
-        
+    return np.array(binary_dilation(canvas, selem = np.ones([4,4])),dtype = np.uint8), KP   
 
+def reprojer(img1,img2,h):
+    im1reg = cv2.warpPerspective(img1,h,(cols,rows))
+    
+    hinv = np.linalg.inv(finalH)/np.linalg.inv(h)[2,2]
+    im2reg = cv2.warpPerspective(img1,hinv,(cols,rows))
+    rper = 2
+    return rper     
+
+def reProjErr(corrs, h):
+    p1reg = cv2.warpPerspective(corrs[:,0:2],h,corrs[:,0:2].shape)
+    hinv = np.linalg.inv(finalH)/np.linalg.inv(h)[2,2]
+    p2reg = cv2.warpPerspective(corrs[:,2:4],hinv,corrs[:,2:4].shape)
+    
+    p1reg_dist = np.linalg.norm(corrs[:,2:4].T-p1reg)
+    p2reg_dist = np.linalg.norm(corrs[:,0:2].T-p2reg)
+    
+    return p1reg_dist, p2reg_dist
+
+p1reg_dist = []
+p2reg_dist = []
 for im1 in ['00']:
     for im2 in ['01','02','03']:
         if im1 != im2:
@@ -353,6 +373,11 @@ for im1 in ['00']:
                     Ere = np.inner(np.array(R),np.array(R))/len(R)
                     # Ere = np.dot(R_arr.T,R_arr)/len(R)
                     print ("Error: ", Ere)
+                    
+                    
+                    p1reg_dist.append(reProjErr(corrs, finalH)[0]/255)
+                    p2reg_dist.append(reProjErr(corrs, finalH)[1]/255)
+                    
                     
                     # Actually registering the image
                     dst = cv2.warpPerspective(img1,finalH,(cols,rows))

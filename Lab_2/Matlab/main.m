@@ -10,12 +10,17 @@ imwrite(Y,'piga3.pgm');
 
 %% NORANSAC
 H=computeHomography(p_i_segonaImatge,p_i_primeraImatge,'affine');
-A = transpose(H);  %Your matrix in here
-t = maketform( 'affine', A);
-B = imtransform(Y,t);
+% A = transpose(H);  %Your matrix in here
+% t = maketform( 'affine', H);
+B = imwarp(Y,H);
 C=appendimages(Y,B);
+
 figure;
-imshow(C);
+imshow(B);
+figure;
+imshow(Y);
+figure;
+imshow(X);
 
 %% RANSAC
 HR=computeHomographyRANSAC(p_i_segonaImatge,p_i_primeraImatge,'affine');

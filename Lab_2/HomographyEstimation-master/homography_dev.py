@@ -97,8 +97,8 @@ def findFeatures(img):
 def findFeaturesWithKp(img, canvas, KP):
     print("Finding Features...")
     sift = cv2.SIFT_create()
-    # KP, descriptors = sift.detectAndCompute(img,cv2.UMat(canvas)) # change KP to "useless" if you wanna use professor's Key Points
-    useless, descriptors = sift.compute(img,KP) # change KP to "useless" if you wanna use professor's Key Points
+    # KP, descriptors = sift.detectAndCompute(img,cv2.UMat(canvas)) # change KP to "alles" if you wanna use professor's Key Points
+    alles, descriptors = sift.compute(img,KP) # change KP to "alles" if you wanna use professor's Key Points
 
     img = cv2.drawKeypoints(img, KP, img)
     cv2.imwrite('sift_keypoints.png', img)
@@ -211,7 +211,7 @@ def computeHomography(matches, model):
         
         # Getting the Transaltion Terms
         h[:dim, dim] = dst_mean - scale * (h[:dim, :dim] @ src_mean.T)
-        h[:dim, :dim] *= scale
+        h[:dim, :dim] *= 1/scale
         return h
     
     elif (model == 'Affine'):
@@ -219,46 +219,44 @@ def computeHomography(matches, model):
             p1 = np.matrix([corr.item(0), corr.item(1), 1]) # first point of the correspondence
             p2 = np.matrix([corr.item(2), corr.item(3), 1]) # second point of the correspondence
     
-            a1 = [p1.item(0), p1.item(1), 1, 0, 0, 0]
-            a2 = [0, 0, 0, p1.item(0), p1.item(1), 1]
-            
-            aList.append(a1)
-            aList.append(a2)
-    
-        matrixA = np.matrix(aList)
-        U, S, V = np.linalg.svd(matrixA)
-        h = np.zeros([3,3])
-    
-        #reshape the min singular value into a 3 by 3 matrix
-        h[0:2] = np.reshape(V[5], (2, 3)) # getting the least important eigenvalue vector
-        h[-1,-1] = 1
-
-        return h
-    elif (model == 'Projection'):
-        for corr in matches:
-            p1 = np.matrix([corr.item(0), corr.item(1), 1]) # first point of the correspondence
-            p2 = np.matrix([corr.item(2), corr.item(3), 1]) # second point of the correspondence
-            
-            a1 = [p1.item(0), p1.item(1), 1, 0, 0, 0, -p2.item(0) * p1.item(0), 
-                  -p1.item(0) * p2.item(0)]
-            a2 = [0, 0, 0, p1.item(0), p1.item(1), 1, -p1.item(0) * p2.item(1), 
-                  -p1.item(1) * p2.item(1)]
-
+            a2 = [0, 0, 0, -p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2),
+                  0, 0,p2.item(1) * p1.item(2)]
+            a1 = [-p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2), 0, 0, 0,
+                  0, 0, p2.item(0) * p1.item(2)]
             aList.append(a1)
             aList.append(a2)
     
         matrixA = np.matrix(aList)
     
         #svd composition
-        # u, s, v = np.linalg.svd(matrixA)
-        B = matches
-        b = np.reshape(B,[-1,1])
-        x = matrixA/b
-        h = np.zeros([1,9])
-        
-        h[-1,-1]=1
-        h[0,0:8] = v[7]
-        h = h.reshape([3,3])
+        U, S, V = np.linalg.svd(matrixA)
+    
+        #reshape the min singular value into a 3 by 3 matrix
+        h = np.reshape(V[6], (3, 3)) # getting the least important eigenvalue vector
+
+        #normalize and now we have h
+        h = (1/h.item(8)) * h
+        return h
+    elif (model == 'Projection'):
+        for corr in matches:
+            p1 = np.matrix([corr.item(0), corr.item(1), 1]) # first point of the correspondence
+            p2 = np.matrix([corr.item(2), corr.item(3), 1]) # second point of the correspondence
+    
+            a2 = [0, 0, 0, -p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2),
+                  p2.item(1) * p1.item(0), p2.item(1) * p1.item(1), p2.item(1) * p1.item(2)]
+            a1 = [-p2.item(2) * p1.item(0), -p2.item(2) * p1.item(1), -p2.item(2) * p1.item(2), 0, 0, 0,
+                  p2.item(0) * p1.item(0), p2.item(0) * p1.item(1), p2.item(0) * p1.item(2)]
+            aList.append(a1)
+            aList.append(a2)
+    
+        matrixA = np.matrix(aList)
+    
+        #svd composition
+        u, s, v = np.linalg.svd(matrixA)
+    
+        #reshape the min singular value into a 3 by 3 matrix
+        h = np.reshape(v[8], (3, 3)) # getting the least important eigenvalue vector
+        # 8 because it's the last in the v vector, the least imporant
     
         #normalize and now we have h
         h = (1/h.item(8)) * h
@@ -272,12 +270,24 @@ def keyPointMask(img,kp):
         KP.append(cv2.KeyPoint(y,x,100))
     return np.array(binary_dilation(canvas, selem = np.ones([4,4])),dtype = np.uint8), KP        
         
+def reProjErr(corrs, h):
+    p1reg = cv2.warpPerspective(corrs[:,0:2],h,corrs[:,0:2].shape)
+    hinv = np.linalg.inv(finalH)/np.linalg.inv(h)[2,2]
+    p2reg = cv2.warpPerspective(corrs[:,2:4],hinv,corrs[:,2:4].shape)
+    
+    p1reg_dist = np.linalg.norm(corrs[:,2:4].T-p1reg)
+    p2reg_dist = np.linalg.norm(corrs[:,0:2].T-p2reg)
+    
+    return p1reg_dist, p2reg_dist
 
-for im1 in ['00']:
-    for im2 in ['01','02','03']:
+p1reg_dist = []
+p2reg_dist = []
+
+for im1 in ['retina1']:
+    for im2 in ['retina2']:
         if im1 != im2:
-            img1name = "./DataSet01/{}.png".format(im1)
-            img2name = "./DataSet01/{}.png" .format(im2)
+            img1name = "./DataSet00/{}.png".format(im1)
+            img2name = "./DataSet00/{}.png" .format(im2)
             
             print("Image 1 Name: " + img1name)
             print("Image 2 Name: " + img2name)
@@ -287,30 +297,14 @@ for im1 in ['00']:
             #train image
             img2 = readImage(img2name)
             rows,cols = img1.shape
-            
-            # Loading features
-            mat = scipy.io.loadmat('./DataSet01/Features.mat')
-            Features = mat['Features'].T
-            features = []
-            
-            for i in range (0,Features.shape[0]):
-                features.append(Features[i][0][0])
-            
-            # del mat, Features
-            kp1 = np.floor(features[int(img1name[-5])]) # x (kp[:,1]) and y (kp[:,0]) 
-            kp2 = np.floor(features[int(img2name[-5])])
-            
-            
+        
             # Step 2
             for mode in ['Euclidean', 'Similarity', 'Affine', 'Projection']:
                 correspondenceList = []
                 if img1 is not None and img2 is not None:
                     
-                    canvas1, KP1 = keyPointMask(img1, kp1) # KP1 is kp1 in cv2 keypoint format
-                    canvas2, KP2 = keyPointMask(img2, kp2)
-                    
-                    KP1, desc1 = findFeaturesWithKp(img1,canvas1,KP1)
-                    KP2, desc2 = findFeaturesWithKp(img2,canvas2,KP2)
+                    KP1, desc1 = findFeatures(img1)
+                    KP2, desc2 = findFeatures(img2)
                     
                     print ("Found keypoints in " + img1name + ": " + str(len(KP1)))
                     print ("Found keypoints in " + img2name + ": " + str(len(KP2)))
@@ -320,7 +314,7 @@ for im1 in ['00']:
                     for match in matches:
                         (x1, y1) = keypoints[0][match.queryIdx].pt
                         (x2, y2) = keypoints[1][match.trainIdx].pt
-                        correspondenceList.append([y1, x1, y2, x2])
+                        correspondenceList.append([x1, y1, x2, y2])
                 
                     corrs = np.matrix(correspondenceList)
                 
@@ -361,13 +355,20 @@ for im1 in ['00']:
                     # plt.figure()
                     # io.imshow(dst)
                     
-                    io.imsave('./Results/{}/{}_to_{}_{}.png'.format(mode,im1,im2,mode), dst)
+                    io.imsave('./Results2/{}/{}_to_{}_{}.png'.format(mode,im1,im2,mode), dst)
                     
-                    f = open('./Results/{}/homography_{}_to_{}_{}.txt'.format(mode,im1,im2,mode), 'w')
+                    f = open('./Results2/{}/homography_{}_to_{}_{}.txt'.format(mode,im1,im2,mode), 'w')
                     f.write("Final homography: \n" + str(finalH)+"\n")
                     
                     added_image = cv2.cvtColor(img2,cv2.COLOR_GRAY2RGB)
                     added_image[:,:,1] = dst
                     added_image[:,:,2] = dst
                     # added_image = cv2.addWeighted(img2,0.4,dst,0.1,0)
-                    io.imsave('./Results/{}/overlay_{}_to_{}_{}.png'.format(mode,im1,im2,mode), added_image)
+                    io.imsave('./Results2/{}/overlay_{}_to_{}_{}.png'.format(mode,im1,im2,mode), added_image)
+                    
+                    # Reprojection Analysis
+                    p1reg_dist.append(reProjErr(corrs, finalH)[0]/255)
+                    p2reg_dist.append(reProjErr(corrs, finalH)[1]/255)
+                    
+print('Projecting matching points from im1 onto im2, errors:{}'.format(p1reg_dist))
+print('Projecting matching points from im2 onto im1, errors:{}'.format(p2reg_dist))

@@ -97,8 +97,8 @@ def findFeatures(img):
 def findFeaturesWithKp(img, canvas, KP):
     print("Finding Features...")
     sift = cv2.SIFT_create()
-    # KP, descriptors = sift.detectAndCompute(img,cv2.UMat(canvas)) # change KP to "useless" if you wanna use professor's Key Points
-    useless, descriptors = sift.compute(img,KP) # change KP to "useless" if you wanna use professor's Key Points
+    # KP, descriptors = sift.detectAndCompute(img,cv2.UMat(canvas)) # change KP to "alles" if you wanna use professor's Key Points
+    alles, descriptors = sift.compute(img,KP) # change KP to "alles" if you wanna use professor's Key Points
 
     img = cv2.drawKeypoints(img, KP, img)
     cv2.imwrite('sift_keypoints.png', img)
@@ -270,6 +270,18 @@ def keyPointMask(img,kp):
         KP.append(cv2.KeyPoint(y,x,100))
     return np.array(binary_dilation(canvas, selem = np.ones([4,4])),dtype = np.uint8), KP        
         
+def reProjErr(corrs, h):
+    p1reg = cv2.warpPerspective(corrs[:,0:2],h,corrs[:,0:2].shape)
+    hinv = np.linalg.inv(finalH)/np.linalg.inv(h)[2,2]
+    p2reg = cv2.warpPerspective(corrs[:,2:4],hinv,corrs[:,2:4].shape)
+    
+    p1reg_dist = np.linalg.norm(corrs[:,2:4].T-p1reg)
+    p2reg_dist = np.linalg.norm(corrs[:,0:2].T-p2reg)
+    
+    return p1reg_dist, p2reg_dist
+
+p1reg_dist = []
+p2reg_dist = []
 
 for im1 in ['00']:
     for im2 in ['01','02','03']:
@@ -369,3 +381,10 @@ for im1 in ['00']:
                     added_image[:,:,2] = dst
                     # added_image = cv2.addWeighted(img2,0.4,dst,0.1,0)
                     io.imsave('./Results/{}/overlay_{}_to_{}_{}.png'.format(mode,im1,im2,mode), added_image)
+                    
+                    # Reprojection Analysis
+                    p1reg_dist.append(reProjErr(corrs, finalH)[0]/255)
+                    p2reg_dist.append(reProjErr(corrs, finalH)[1]/255)
+                    
+print('Projecting matching points from im1 onto im2, errors:{}'.format(p1reg_dist))
+print('Projecting matching points from im2 onto im1, errors:{}'.format(p2reg_dist))

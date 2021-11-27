@@ -87,7 +87,11 @@ def drawMatches(img1, kp1, img2, kp2, matches, inliers = None):
 #
 def findFeatures(img):
     print("Finding Features...")
-    sift = cv2.SIFT_create()
+    sift = cv2.SIFT_create(nfeatures = 128, 
+                           nOctaveLayers = 3,
+                           contrastThreshold = 0.04,
+                           edgeThreshold = 0.5,
+                           sigma = 1.6)
     keypoints, descriptors = sift.detectAndCompute(img, None)
 
     img = cv2.drawKeypoints(img, keypoints,img)
@@ -98,12 +102,12 @@ def findFeatures(img):
 def findFeaturesWithKp(img, canvas, KP):
     print("Finding Features...")
     sift = cv2.SIFT_create(nfeatures = 128, 
-                           nOctaveLayers = 2,
+                           nOctaveLayers = 3,
                            contrastThreshold = 0.2,
                            edgeThreshold = 0.1,
                            sigma = 1.6)
-    # KP, descriptors = sift.detectAndCompute(img,cv2.UMat(canvas)) # change KP to "useless" if you wanna use professor's Key Points
-    useless, descriptors = sift.compute(img,KP) # change KP to "useless" if you wanna use professor's Key Points
+    # KP, descriptors = sift.detectAndCompute(img)
+    KP, descriptors = sift.compute(img,None) # change KP to "alle" if you wanna use professor's Key Points
 
     img = cv2.drawKeypoints(img, KP, img)
     cv2.imwrite('sift_keypoints.png', img)
@@ -331,8 +335,10 @@ for im1 in ['00']:
                     canvas1, KP1 = keyPointMask(img1, kp1) # KP1 is kp1 in cv2 keypoint format
                     canvas2, KP2 = keyPointMask(img2, kp2)
                     
-                    KP1, desc1 = findFeaturesWithKp(img1,canvas1,KP1)
-                    KP2, desc2 = findFeaturesWithKp(img2,canvas2,KP2)
+                    # KP1, desc1 = findFeaturesWithKp(img1,canvas1,KP1)
+                    # KP2, desc2 = findFeaturesWithKp(img2,canvas2,KP2)
+                    KP1, desc1 = findFeatures(img1)
+                    KP2, desc2 = findFeatures(img2)
                     
                     print ("Found keypoints in " + img1name + ": " + str(len(KP1)))
                     print ("Found keypoints in " + img2name + ": " + str(len(KP2)))
@@ -353,41 +359,16 @@ for im1 in ['00']:
                 
                     print ("Final homography: ", finalH)
                     
-                    # Reprojection Error
-                    invH = np.linalg.inv(finalH)/np.linalg.inv(finalH)[2,2]
-                    R = []
-                    for corr in correspondenceList:
-                        # print (corr) # y1-corr[0] x1-corr[1] y2-corr[2] x2-corr[3]
-                        a = corr [0] - np.divide (finalH[0,0]*corr[2] + finalH[0,1]*corr[3] +finalH[0,2], 
-                                                  finalH[2,0]*corr[2] + finalH[2,1]*corr[3] +1)
-                        b = corr[1] - np.divide(finalH[1,0]*corr[2]+finalH[1,1]*corr[3]+finalH[1,2],
-                                                finalH[2,0]*corr[3]+finalH[2,1]*corr[2]+1)
-                        c = corr[2] - np.divide(invH[0,0]*corr[0]+invH[0,1]*corr[1]+invH[0,2],
-                                                invH[2,0]*corr[0]+invH[2,1]*corr[1]+1)
-                        d = corr[3] - np.divide(invH[1,0]*corr[0]+invH[1,1]*corr[1]+invH[1,2],
-                                                invH[2,0]*corr[0]+invH[2,1]*corr[1]+1)
-                        R.append(np.array([a,b,c,d]))
-                        
-                    R_arr = np.array(R)
-                    R_arr = R_arr.reshape([R_arr.shape[0]*R_arr.shape[1],1])
-                    Ere = np.inner(np.array(R),np.array(R))/len(R)
-                    # Ere = np.dot(R_arr.T,R_arr)/len(R)
-                    print ("Error: ", Ere)
-                    
-                    
+                    # Reprojection Analysis
                     p1reg_dist.append(reProjErr(corrs, finalH)[0]/255)
                     p2reg_dist.append(reProjErr(corrs, finalH)[1]/255)
+                    
+                    print('Projecting matching points from im1 onto im2, errors:{}'.format(p1reg_dist))
+                    print('Projecting matching points from im2 onto im1, errors:{}'.format(p1reg_dist))
                     
                     
                     # Actually registering the image
                     dst = cv2.warpPerspective(img1,finalH,(cols,rows))
-                    
-                    # plt.figure()
-                    # io.imshow(img1)
-                    # plt.figure()
-                    # io.imshow(img2)
-                    # plt.figure()
-                    # io.imshow(dst)
                     
                     io.imsave('./Results/RANSAC/{}/{}_to_{}_{}.png'.format(mode,im1,im2,mode), dst)
                     
@@ -399,3 +380,11 @@ for im1 in ['00']:
                     added_image[:,:,2] = dst
                     # added_image = cv2.addWeighted(img2,0.4,dst,0.1,0)
                     io.imsave('./Results/RANSAC/{}/overlay_{}_to_{}_{}.png'.format(mode,im1,im2,mode), added_image)
+                    
+                    
+print('Projecting matching points from im1 onto im2, errors:{}'.format(p1reg_dist))
+print('Projecting matching points from im2 onto im1, errors:{}'.format(p2reg_dist))
+
+
+
+

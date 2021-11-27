@@ -16,7 +16,7 @@ from skimage import io
 # Read in an image file, errors out if we can't find the file
 #
 def readImage(filename):
-    img = cv2.imread(filename, 0)
+    img = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
     if img is None:
         print('Invalid image:' + filename)
         return None
@@ -180,25 +180,10 @@ def ransac(corr, thresh):
     return finalH, maxInliers
 
 
-#
-# Main parses argument list and runs the functions
-#
-# def main():
-# args, img_name = getopt.getopt(sys.argv[1:],'', ['threshold='])
-# args = dict(args)
+estimation_thresh = 0.4 # for 0 to 3
 
-# estimation_thresh = args.get('--threshold')
-# print ("Estimation Threshold: ", estimation_thresh)
-# if estimation_thresh is None:
-estimation_thresh = 0.3 # for 0 to 3
-
-# img1name = str(img_name[0])
-# img2name = str(img_name[1])
-    
-# img1name = "D:\\Uni\\Spain\\MIRA\\MIRA\\Lab_2\\HomographyEstimation-master\\img1.png"
-# img2name = "D:\\Uni\\Spain\\MIRA\\MIRA\\Lab_2\\HomographyEstimation-master\\img4.png"
-img1name = "./DataSet01/00.png"
-img2name = "./DataSet01/03.png" 
+img1name = "./DataSet00/retina1.png"
+img2name = "./DataSet00/retina2.png" 
 print("Image 1 Name: " + img1name)
 print("Image 2 Name: " + img2name)
 
@@ -246,5 +231,3 @@ if img1 is not None and img2 is not None:
     # added_image = cv2.addWeighted(img2,0.4,dst,0.1,0)
     io.imsave('./Results/overlay_{}_to_{}.png'.format(img1name[-5],img2name[-5]), added_image)
 
-# if __name__ == "__main__":
-#     main()

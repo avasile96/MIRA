@@ -1,0 +1,14 @@
+*.mat
+*.pyc
+*.asv
+*.mha
+*.nii
+*.auto
+
+
+.idea/*
+
+
+
+
+
